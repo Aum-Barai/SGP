@@ -6,6 +6,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tweet Sentiment Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
       body {
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
@@ -72,9 +73,92 @@
         padding: 8px 20px;
         border-radius: 20px;
         font-weight: 600;
-        background-color: #e8f5fe;
-        color: #1da1f2;
         margin-bottom: 15px;
+      }
+
+      /* Positive emotions */
+      .sentiment-Positive {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+      }
+
+      .sentiment-Excited {
+        background-color: #fff3e0;
+        color: #e65100;
+      }
+
+      .sentiment-Hopeful {
+        background-color: #e3f2fd;
+        color: #1565c0;
+      }
+
+      .sentiment-Proud {
+        background-color: #f3e5f5;
+        color: #7b1fa2;
+      }
+
+      .sentiment-Grateful {
+        background-color: #e8eaf6;
+        color: #283593;
+      }
+
+      /* Negative emotions */
+      .sentiment-Negative {
+        background-color: #ffebee;
+        color: #c62828;
+      }
+
+      .sentiment-Angry {
+        background-color: #ff5252;
+        color: white;
+      }
+
+      .sentiment-Sad {
+        background-color: #e0f2f1;
+        color: #00695c;
+      }
+
+      .sentiment-Anxious {
+        background-color: #fff8e1;
+        color: #ff6f00;
+      }
+
+      /* Neutral/Other emotions */
+      .sentiment-Neutral {
+        background-color: #f5f5f5;
+        color: #616161;
+      }
+
+      .sentiment-Confused {
+        background-color: #fce4ec;
+        color: #c2185b;
+      }
+
+      .sentiment-Surprised {
+        background-color: #f1f8e9;
+        color: #558b2f;
+      }
+
+      /* Humorous categories */
+      .sentiment-Funny {
+        background-color: #e1f5fe;
+        color: #0277bd;
+      }
+
+      .sentiment-Sarcastic {
+        background-color: #ede7f6;
+        color: #4527a0;
+      }
+
+      .sentiment-Meme {
+        background-color: #f3e5f5;
+        color: #6a1b9a;
+      }
+
+      /* Error state */
+      .sentiment-Error {
+        background-color: #ffebee;
+        color: #b71c1c;
       }
 
       .char-count {
@@ -188,6 +272,81 @@
       .cache-hit {
         color: #794bc4;
       }
+
+      .charts-container {
+        margin-top: 30px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: 20px;
+      }
+
+      .chart-card {
+        background-color: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+
+      .model-info {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 20px;
+        font-size: 14px;
+      }
+
+      .token-metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+      }
+
+      .token-metric {
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 8px;
+        text-align: center;
+      }
+
+      .token-metric-title {
+        font-size: 12px;
+        color: #657786;
+      }
+
+      .token-metric-value {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1da1f2;
+        margin-top: 5px;
+      }
+
+      .sentiment-guide {
+        margin: 20px 0;
+        padding: 15px;
+        background-color: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+
+      .sentiment-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 10px;
+      }
+
+      .sentiment-guide-item {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .sentiment-guide-item .sentiment-badge {
+        font-size: 12px;
+        padding: 4px 12px;
+        margin: 0;
+      }
     </style>
   </head>
   <body>
@@ -214,7 +373,9 @@
       {% if sentiment %}
       <div class="result">
         <h2>Analysis Result</h2>
-        <div class="sentiment-badge">{{ sentiment }}</div>
+        <div class="sentiment-badge sentiment-{{ sentiment }}">
+          {{ sentiment }}
+        </div>
         <div class="buttons-container">
           <button class="explain-btn" onclick="getExplanation()">
             <span id="loading" class="loading" style="display: none"></span>
@@ -227,6 +388,46 @@
 
       <div class="metrics-container">
         <h2>Model Performance Metrics</h2>
+
+        <div class="model-info">
+          <strong>Model:</strong> {{ stats.model_info.name }} |
+          <strong>Temperature:</strong> {{ stats.model_info.temperature }}
+        </div>
+
+        <!-- Add sentiment color guide -->
+        <div class="sentiment-guide">
+          <h3>Sentiment Color Guide</h3>
+          <div class="sentiment-grid">
+            <!-- Positive emotions -->
+            <div class="sentiment-guide-item">
+              <span class="sentiment-badge sentiment-Positive">Positive</span>
+              <span class="sentiment-badge sentiment-Excited">Excited</span>
+              <span class="sentiment-badge sentiment-Hopeful">Hopeful</span>
+              <span class="sentiment-badge sentiment-Proud">Proud</span>
+              <span class="sentiment-badge sentiment-Grateful">Grateful</span>
+            </div>
+            <!-- Negative emotions -->
+            <div class="sentiment-guide-item">
+              <span class="sentiment-badge sentiment-Negative">Negative</span>
+              <span class="sentiment-badge sentiment-Angry">Angry</span>
+              <span class="sentiment-badge sentiment-Sad">Sad</span>
+              <span class="sentiment-badge sentiment-Anxious">Anxious</span>
+            </div>
+            <!-- Neutral/Other emotions -->
+            <div class="sentiment-guide-item">
+              <span class="sentiment-badge sentiment-Neutral">Neutral</span>
+              <span class="sentiment-badge sentiment-Confused">Confused</span>
+              <span class="sentiment-badge sentiment-Surprised">Surprised</span>
+            </div>
+            <!-- Humorous categories -->
+            <div class="sentiment-guide-item">
+              <span class="sentiment-badge sentiment-Funny">Funny</span>
+              <span class="sentiment-badge sentiment-Sarcastic">Sarcastic</span>
+              <span class="sentiment-badge sentiment-Meme">Meme</span>
+            </div>
+          </div>
+        </div>
+
         <div class="metrics-grid">
           <div class="metric-card">
             <div class="metric-title">Total Requests</div>
@@ -253,6 +454,28 @@
           </div>
         </div>
 
+        <div class="token-metrics">
+          <div class="token-metric">
+            <div class="token-metric-title">Total Tokens Used</div>
+            <div class="token-metric-value">{{ stats.total_tokens_used }}</div>
+          </div>
+          <div class="token-metric">
+            <div class="token-metric-title">Avg Tokens/Request</div>
+            <div class="token-metric-value">
+              {{ "%.1f"|format(stats.avg_tokens_per_request) }}
+            </div>
+          </div>
+        </div>
+
+        <div class="charts-container">
+          <div class="chart-card">
+            <canvas id="responseTimeChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <canvas id="tokenUsageChart"></canvas>
+          </div>
+        </div>
+
         <div class="recent-requests">
           <h3>Recent Requests</h3>
           {% for metric in stats.recent_metrics %}
@@ -266,6 +489,11 @@
             {% endif %} {% if metric.error_message %}
             <span class="error">Error: {{ metric.error_message }}</span>
             {% endif %}
+            <br />
+            <small>
+              Tokens: {{ metric.total_tokens }} (Input: {{ metric.input_tokens
+              }}, Output: {{ metric.output_tokens }})
+            </small>
           </div>
           {% endfor %}
         </div>
@@ -281,6 +509,11 @@
       window.onload = function () {
         const textarea = document.querySelector("textarea");
         updateCharCount(textarea);
+
+        // Create initial charts if metrics history exists
+        if ({{ stats.metrics_history|tojson }}) {
+          createCharts({{ stats.metrics_history|tojson }});
+        }
       };
 
       async function getExplanation() {
@@ -324,6 +557,67 @@
         }
       }
 
+      function createCharts(metricsHistory) {
+        // Response Time Chart
+        const responseTimeCtx = document.getElementById('responseTimeChart').getContext('2d');
+        new Chart(responseTimeCtx, {
+          type: 'line',
+          data: {
+            labels: metricsHistory.map(m => new Date(m.timestamp).toLocaleTimeString()),
+            datasets: [{
+              label: 'Response Time (s)',
+              data: metricsHistory.map(m => m.response_time),
+              borderColor: '#1da1f2',
+              tension: 0.1
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              title: {
+                display: true,
+                text: 'Response Time History'
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true
+              }
+            }
+          }
+        });
+
+        // Token Usage Chart
+        const tokenUsageCtx = document.getElementById('tokenUsageChart').getContext('2d');
+        new Chart(tokenUsageCtx, {
+          type: 'line',
+          data: {
+            labels: metricsHistory.map(m => new Date(m.timestamp).toLocaleTimeString()),
+            datasets: [{
+              label: 'Total Tokens',
+              data: metricsHistory.map(m => m.total_tokens),
+              borderColor: '#17bf63',
+              tension: 0.1
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              title: {
+                display: true,
+                text: 'Token Usage History'
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true
+              }
+            }
+          }
+        });
+      }
+
+      // Update metrics display with charts
       function updateMetricsDisplay(stats) {
         // Update metric cards
         document.querySelector(".metrics-grid").innerHTML = `
@@ -358,7 +652,7 @@
             (metric) => `
           <div class="request-item">
             <span class="${metric.success ? "success" : "error"}">●</span>
-            ${metric.timestamp} - 
+            ${metric.timestamp} -
             Response time: ${metric.response_time.toFixed(3)}s
             ${
               metric.cache_hit
@@ -378,6 +672,40 @@
         document.querySelector(".recent-requests").innerHTML = `
           <h3>Recent Requests</h3>
           ${recentRequestsHtml}
+        `;
+
+        // Update charts
+        if (stats.metrics_history) {
+          // Remove old charts
+          document.querySelectorAll('canvas').forEach(canvas => {
+            canvas.remove();
+          });
+
+          // Create new canvas elements
+          const chartsContainer = document.querySelector('.charts-container');
+          chartsContainer.innerHTML = `
+            <div class="chart-card">
+              <canvas id="responseTimeChart"></canvas>
+            </div>
+            <div class="chart-card">
+              <canvas id="tokenUsageChart"></canvas>
+            </div>
+          `;
+
+          // Create new charts
+          createCharts(stats.metrics_history);
+        }
+
+        // Update token metrics
+        document.querySelector('.token-metrics').innerHTML = `
+          <div class="token-metric">
+            <div class="token-metric-title">Total Tokens Used</div>
+            <div class="token-metric-value">${stats.total_tokens_used}</div>
+          </div>
+          <div class="token-metric">
+            <div class="token-metric-title">Avg Tokens/Request</div>
+            <div class="token-metric-value">${stats.avg_tokens_per_request.toFixed(1)}</div>
+          </div>
         `;
       }
     </script>
