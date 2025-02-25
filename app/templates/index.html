@@ -1,0 +1,225 @@
+<!-- @format -->
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tweet Sentiment Analysis</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f8fa;
+        color: #1a1a1a;
+      }
+
+      h1 {
+        color: #1da1f2;
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .container {
+        background-color: white;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      textarea {
+        width: 100%;
+        padding: 15px;
+        border: 2px solid #e1e8ed;
+        border-radius: 10px;
+        font-size: 16px;
+        margin-bottom: 20px;
+        resize: vertical;
+        box-sizing: border-box;
+      }
+
+      textarea:focus {
+        outline: none;
+        border-color: #1da1f2;
+      }
+
+      button {
+        background-color: #1da1f2;
+        color: white;
+        border: none;
+        padding: 12px 25px;
+        border-radius: 25px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+        display: inline-block;
+        margin: 0 5px;
+      }
+
+      button:hover {
+        background-color: #1991db;
+      }
+
+      .result {
+        margin-top: 30px;
+        text-align: center;
+      }
+
+      .sentiment-badge {
+        display: inline-block;
+        padding: 8px 20px;
+        border-radius: 20px;
+        font-weight: 600;
+        background-color: #e8f5fe;
+        color: #1da1f2;
+        margin-bottom: 15px;
+      }
+
+      .char-count {
+        color: #657786;
+        text-align: right;
+        font-size: 14px;
+        margin-top: -15px;
+        margin-bottom: 15px;
+      }
+
+      .explanation {
+        margin-top: 20px;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 10px;
+        font-size: 14px;
+        line-height: 1.5;
+        text-align: left;
+        display: none;
+      }
+
+      .buttons-container {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 15px;
+      }
+
+      .explain-btn {
+        background-color: #17bf63;
+      }
+
+      .explain-btn:hover {
+        background-color: #15a857;
+      }
+
+      .loading {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #3498db;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-right: 10px;
+        vertical-align: middle;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Tweet Sentiment Analysis</h1>
+      <form method="post" id="tweetForm">
+        <textarea
+          name="tweet"
+          rows="4"
+          maxlength="280"
+          placeholder="Enter your tweet here..."
+          oninput="updateCharCount(this)"
+        >
+{{ tweet }}</textarea
+        >
+        <div class="char-count">
+          <span id="charCount">0</span>/280 characters
+        </div>
+        <div class="buttons-container">
+          <button type="submit">Analyze Sentiment</button>
+        </div>
+      </form>
+
+      {% if sentiment %}
+      <div class="result">
+        <h2>Analysis Result</h2>
+        <div class="sentiment-badge">{{ sentiment }}</div>
+        <div class="buttons-container">
+          <button class="explain-btn" onclick="getExplanation()">
+            <span id="loading" class="loading" style="display: none"></span>
+            Explain Why
+          </button>
+        </div>
+        <div id="explanation" class="explanation"></div>
+      </div>
+      {% endif %}
+    </div>
+
+    <script>
+      function updateCharCount(textarea) {
+        const charCount = textarea.value.length;
+        document.getElementById("charCount").textContent = charCount;
+      }
+
+      // Initialize character count on page load
+      window.onload = function () {
+        const textarea = document.querySelector("textarea");
+        updateCharCount(textarea);
+      };
+
+      async function getExplanation() {
+        const tweet = document.querySelector("textarea").value;
+        const sentiment =
+          document.querySelector(".sentiment-badge").textContent;
+        const loadingSpinner = document.getElementById("loading");
+        const explanationDiv = document.getElementById("explanation");
+        const explainButton = document.querySelector(".explain-btn");
+
+        // Show loading spinner
+        loadingSpinner.style.display = "inline-block";
+        explainButton.disabled = true;
+
+        try {
+          const response = await fetch("/explain", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ tweet, sentiment }),
+          });
+
+          if (!response.ok) {
+            throw new Error("Failed to get explanation");
+          }
+
+          const data = await response.json();
+          explanationDiv.textContent = data.explanation;
+          explanationDiv.style.display = "block";
+        } catch (error) {
+          console.error("Error:", error);
+          explanationDiv.textContent =
+            "Failed to get explanation. Please try again.";
+          explanationDiv.style.display = "block";
+        } finally {
+          // Hide loading spinner
+          loadingSpinner.style.display = "none";
+          explainButton.disabled = false;
+        }
+      }
+    </script>
+  </body>
+</html>
