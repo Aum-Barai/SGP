@@ -1,0 +1,28 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Codebase Structure and Conventions
+
+This project follows a standard Python Flask application structure.
+
+- `@README.md`: Project overview, setup instructions, and usage guide.
+- `@LICENSE`: MIT License details.
+- `@app/`: Flask application directory.
+    - `@app/__init__.py`: Initializes the Flask application and defines routes.
+    - `@app/llm_services.py`: Contains the `SentimentAnalyzer` class and related functions for interacting with the Ollama LLM and performing sentiment analysis.
+    - `@app/templates/`: Contains HTML templates.
+        - `@app/templates/index.html`: Main HTML template for the user interface.
+- `@requirements.txt`: Lists Python package dependencies.
+- `@run.py`: Script to start the Flask development server.
+- `.gitignore`: Specifies intentionally untracked files that Git should ignore.
+
+**Code Conventions:**
+
+- Python code follows PEP 8 style guidelines.
+- Comments are used to explain complex logic and functionality.
+- Logging is implemented using the `logging` module for debugging and monitoring.
+- Type hints are used to improve code readability and maintainability.
+- Dataclasses are used for data structures like `ModelMetrics` and `AnalyzerStats`.
+- Error handling is implemented using `try-except` blocks with logging of exceptions.

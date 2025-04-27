@@ -6,6 +6,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tweet Sentiment Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
       body {
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
@@ -69,12 +70,96 @@
 
       .sentiment-badge {
         display: inline-block;
-        padding: 8px 20px;
-        border-radius: 20px;
-        font-weight: 600;
-        background-color: #e8f5fe;
-        color: #1da1f2;
-        margin-bottom: 15px;
+        padding: 6px 12px;
+        border-radius: 15px;
+        font-size: 12px;
+        font-weight: 500;
+        text-align: center;
+      }
+
+      /* Positive emotions */
+      .sentiment-badge.sentiment-Positive {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+      }
+
+      .sentiment-badge.sentiment-Excited {
+        background-color: #fff3e0;
+        color: #e65100;
+      }
+
+      .sentiment-badge.sentiment-Hopeful {
+        background-color: #e3f2fd;
+        color: #1565c0;
+      }
+
+      .sentiment-badge.sentiment-Proud {
+        background-color: #f3e5f5;
+        color: #7b1fa2;
+      }
+
+      .sentiment-badge.sentiment-Grateful {
+        background-color: #e8eaf6;
+        color: #283593;
+      }
+
+      /* Negative emotions */
+      .sentiment-badge.sentiment-Negative {
+        background-color: #ffebee;
+        color: #c62828;
+      }
+
+      .sentiment-badge.sentiment-Angry {
+        background-color: #ffcdd2;
+        color: #d32f2f;
+      }
+
+      .sentiment-badge.sentiment-Sad {
+        background-color: #e0f2f1;
+        color: #00695c;
+      }
+
+      .sentiment-badge.sentiment-Anxious {
+        background-color: #fff8e1;
+        color: #ff6f00;
+      }
+
+      /* Neutral/Other emotions */
+      .sentiment-badge.sentiment-Neutral {
+        background-color: #f5f5f5;
+        color: #616161;
+      }
+
+      .sentiment-badge.sentiment-Confused {
+        background-color: #fce4ec;
+        color: #c2185b;
+      }
+
+      .sentiment-badge.sentiment-Surprised {
+        background-color: #f1f8e9;
+        color: #558b2f;
+      }
+
+      /* Humorous categories */
+      .sentiment-badge.sentiment-Funny {
+        background-color: #e1f5fe;
+        color: #0277bd;
+      }
+
+      .sentiment-badge.sentiment-Sarcastic {
+        background-color: #ede7f6;
+        color: #4527a0;
+      }
+
+      .sentiment-badge.sentiment-Meme {
+        background-color: #f3e5f5;
+        color: #6a1b9a;
+      }
+
+      /* Error state */
+      .sentiment-Error {
+        background-color: #ffebee;
+        color: #b71c1c;
       }
 
       .char-count {
@@ -131,12 +216,594 @@
           transform: rotate(360deg);
         }
       }
+
+      .metrics-container {
+        margin-top: 30px;
+        padding: 0;
+        background-color: transparent;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+      }
+      
+      .metrics-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background-color: #f2f7ff;
+        padding: 15px 20px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      }
+      
+      .metrics-header h2 {
+        margin: 0;
+        font-size: 18px;
+        color: #1a1a1a;
+      }
+      
+      .toggle-btn {
+        background-color: white;
+        color: #1da1f2;
+        border: 1px solid #e1e8ed;
+        padding: 5px 12px;
+        border-radius: 15px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.2s;
+      }
+      
+      .toggle-btn:hover {
+        background-color: #f5f8fa;
+      }
+      
+      .model-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background-color: white;
+        padding: 12px 20px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      }
+      
+      .model-info-item {
+        display: flex;
+        align-items: center;
+      }
+      
+      .model-info-label {
+        font-size: 14px;
+        color: #657786;
+        margin-right: 8px;
+      }
+      
+      .model-info-value {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1a1a1a;
+      }
+      
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 15px;
+        margin-bottom: 15px;
+      }
+      
+      .metric-card {
+        background-color: white;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        text-align: center;
+      }
+      
+      .metric-title {
+        font-size: 13px;
+        color: #657786;
+        margin-bottom: 10px;
+      }
+      
+      .metric-value {
+        font-size: 24px;
+        font-weight: 600;
+        color: #1da1f2;
+      }
+      
+      .metric-card.tokens {
+        grid-column: span 2;
+        display: flex;
+        justify-content: space-around;
+      }
+      
+      .token-metric {
+        text-align: center;
+      }
+      
+      .sentiment-guide {
+        background-color: white;
+        padding: 15px 20px;
+        border-radius: 10px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      }
+      
+      .sentiment-guide h3 {
+        font-size: 14px;
+        margin-bottom: 15px;
+        color: #657786;
+      }
+      
+      .sentiment-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      
+      .charts-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 15px;
+      }
+      
+      @media (max-width: 768px) {
+        .charts-container {
+          grid-template-columns: 1fr;
+        }
+      }
+      
+      .chart-card {
+        background-color: white;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      }
+      
+      .chart-title {
+        font-size: 14px;
+        color: #657786;
+        margin-bottom: 10px;
+        text-align: center;
+      }
+      
+      .recent-requests {
+        background-color: white;
+        padding: 15px 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      }
+      
+      .recent-requests h3 {
+        font-size: 14px;
+        margin-bottom: 15px;
+        color: #657786;
+      }
+      
+      .request-list {
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      
+      .request-item {
+        padding: 10px;
+        border-bottom: 1px solid #f0f3f5;
+        font-size: 13px;
+      }
+      
+      .request-item:last-child {
+        border-bottom: none;
+      }
+      
+      .status-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 5px;
+      }
+      
+      .status-success {
+        background-color: #17bf63;
+      }
+      
+      .status-error {
+        background-color: #e0245e;
+      }
+      
+      .cache-hit {
+        color: #794bc4;
+        font-weight: 500;
+      }
     </style>
+    <script>
+      function updateCharCount(textarea) {
+        document.getElementById("charCount").textContent = textarea.value.length;
+      }
+
+      // Initialize character count
+      document.addEventListener("DOMContentLoaded", function () {
+        updateCharCount(document.querySelector("textarea[name='tweet']"));
+      });
+
+      // Add function to toggle metrics visibility
+      function toggleMetricsVisibility() {
+        const metricsContent = document.getElementById("metricsContent");
+        const toggleText = document.getElementById("toggleText");
+        
+        if (metricsContent.style.display === "none") {
+          metricsContent.style.display = "block";
+          toggleText.textContent = "Collapse";
+        } else {
+          metricsContent.style.display = "none";
+          toggleText.textContent = "Expand";
+        }
+      }
+
+      // Add function to update model display when model is changed
+      function updateModel() {
+        const modelName = document.getElementById("modelSelect").value;
+        const temperature = parseFloat(document.getElementById("temperatureSlider").value);
+        
+        // Update hidden form inputs
+        document.getElementById("hiddenModelName").value = modelName;
+        document.getElementById("hiddenTemperature").value = temperature;
+        
+        // Show loading indicator
+        document.getElementById("modelUpdateLoading").style.display = "inline-block";
+        document.getElementById("modelUpdateBtn").disabled = true;
+        
+        // Make API call to update model
+        fetch("/update_model", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model_name: modelName,
+            temperature: temperature,
+          }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            // Update UI with success/error message
+            const statusElement = document.getElementById("modelUpdateStatus");
+            if (data.success) {
+              statusElement.textContent = data.message;
+              statusElement.className = "success";
+              
+              // Update the model info display immediately
+              document.getElementById("modelNameDisplay").textContent = modelName;
+              document.getElementById("temperatureDisplay").textContent = temperature;
+              
+              // Refresh the stats after a short delay
+              setTimeout(() => {
+                fetch("/stats")
+                  .then(response => response.json())
+                  .then(stats => {
+                    // Update any other stats if needed
+                    console.log("Stats updated");
+                  })
+                  .catch(error => console.error("Error updating stats:", error));
+              }, 1000);
+            } else {
+              statusElement.textContent = data.message;
+              statusElement.className = "error";
+            }
+          })
+          .catch((error) => {
+            document.getElementById("modelUpdateStatus").textContent = 
+              "Error updating model: " + error.message;
+            document.getElementById("modelUpdateStatus").className = "error";
+          })
+          .finally(() => {
+            // Hide loading indicator
+            document.getElementById("modelUpdateLoading").style.display = "none";
+            document.getElementById("modelUpdateBtn").disabled = false;
+          });
+      }
+
+      window.onload = function () {
+        const textarea = document.querySelector("textarea");
+        updateCharCount(textarea);
+
+        // Initialize hidden form fields with current values
+        const modelSelect = document.getElementById("modelSelect");
+        const temperatureSlider = document.getElementById("temperatureSlider");
+        
+        if (modelSelect && document.getElementById("hiddenModelName")) {
+          document.getElementById("hiddenModelName").value = modelSelect.value;
+        }
+        
+        if (temperatureSlider && document.getElementById("hiddenTemperature")) {
+          document.getElementById("hiddenTemperature").value = temperatureSlider.value;
+        }
+
+        // Create initial charts if metrics history exists
+        if ({{ stats.metrics_history|tojson }}) {
+          createCharts({{ stats.metrics_history|tojson }});
+        }
+      };
+
+      async function getExplanation() {
+        try {
+          const loading = document.getElementById("loading");
+          if (loading) loading.style.display = "inline-block";
+          
+          const response = await fetch('/explain', {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ 
+              tweet: document.querySelector("textarea").value, 
+              sentiment: document.querySelector(".sentiment-badge").textContent.trim() 
+            }),
+          });
+          
+          console.log("Response status:", response.status);
+          const data = await response.json();
+          console.log("Raw response:", JSON.stringify(data));
+          
+          if (loading) loading.style.display = "none";
+          
+          // Check if data contains explanation
+          if (data.explanation) {
+            const explanationElement = document.getElementById("explanation");
+            if (explanationElement) {
+              explanationElement.innerHTML = data.explanation;
+              explanationElement.style.display = "block";
+            }
+          } else if (data.message) {
+            // Handle error message
+            console.error("API error:", data.message);
+            alert("Error: " + data.message);
+          }
+          
+          // Update metrics if available
+          if (data.stats) {
+            try {
+              updateMetricsDisplay(data.stats);
+            } catch (metricsError) {
+              console.warn('Error updating metrics display:', metricsError);
+            }
+          }
+        } catch (error) {
+          console.error('Error getting explanation:', error);
+          const loading = document.getElementById("loading");
+          if (loading) loading.style.display = "none";
+          alert("Error getting explanation. Please try again.");
+        }
+      }
+
+      function createCharts(metricsHistory) {
+        // Response Time Chart
+        const responseTimeCtx = document.getElementById('responseTimeChart').getContext('2d');
+        new Chart(responseTimeCtx, {
+          type: 'line',
+          data: {
+            labels: metricsHistory.map(m => new Date(m.timestamp).toLocaleTimeString()),
+            datasets: [{
+              label: 'Response Time (s)',
+              data: metricsHistory.map(m => m.response_time),
+              borderColor: '#1da1f2',
+              tension: 0.1
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              title: {
+                display: true,
+                text: 'Response Time History'
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true
+              }
+            }
+          }
+        });
+
+        // Token Usage Chart
+        const tokenUsageCtx = document.getElementById('tokenUsageChart').getContext('2d');
+        new Chart(tokenUsageCtx, {
+          type: 'line',
+          data: {
+            labels: metricsHistory.map(m => new Date(m.timestamp).toLocaleTimeString()),
+            datasets: [{
+              label: 'Total Tokens',
+              data: metricsHistory.map(m => m.total_tokens),
+              borderColor: '#17bf63',
+              tension: 0.1
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              title: {
+                display: true,
+                text: 'Token Usage History'
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true
+              }
+            }
+          }
+        });
+      }
+
+      // Update metrics display with charts
+      function updateMetricsDisplay(stats) {
+        if (!stats) return;
+        
+        // Helper function to safely update element
+        const safeUpdateElement = (id, value) => {
+          const element = document.getElementById(id);
+          if (element) {
+            element.innerHTML = value;
+          }
+        };
+
+        // Update basic metrics
+        safeUpdateElement('avg-response-time', stats.avg_response_time.toFixed(2));
+        safeUpdateElement('total-requests', stats.total_requests);
+        safeUpdateElement('cache-hits', stats.cache_hits);
+        safeUpdateElement('error-rate', (stats.error_rate * 100).toFixed(1));
+
+        // Update model info
+        if (stats.model_info) {
+          safeUpdateElement('model-name', stats.model_info.name);
+          safeUpdateElement('model-temperature', stats.model_info.temperature);
+        }
+
+        // Update recent requests - SAFELY CHECK IF ELEMENT EXISTS
+        const recentRequestsElement = document.querySelector(".recent-requests");
+        if (recentRequestsElement && stats.recent_metrics) {
+          const recentRequestsHtml = stats.recent_metrics
+            .map(
+              (metric) => `
+                <div class="request-item">
+                  <span class="${metric.success ? "success" : "error"}">●</span>
+                  ${metric.timestamp} -
+                  Response time: ${metric.response_time.toFixed(3)}s
+                  ${
+                    metric.cache_hit
+                      ? '<span class="cache-hit">(Cache Hit)</span>'
+                      : ""
+                  }
+                  ${
+                    metric.error_message
+                      ? `<span class="error">Error: ${metric.error_message}</span>`
+                      : ""
+                  }
+                </div>
+              `
+            )
+            .join("");
+
+          recentRequestsElement.innerHTML = `
+            <h3>Recent Requests</h3>
+            ${recentRequestsHtml}
+          `;
+        }
+
+        // Safely update token metrics
+        const tokenMetricsElement = document.querySelector('.token-metrics');
+        if (tokenMetricsElement) {
+          tokenMetricsElement.innerHTML = `
+            <div class="token-metric">
+              <div class="token-metric-title">Total Tokens Used</div>
+              <div class="token-metric-value">${stats.total_tokens_used}</div>
+            </div>
+            <div class="token-metric">
+              <div class="token-metric-title">Avg Tokens/Request</div>
+              <div class="token-metric-value">${stats.avg_tokens_per_request.toFixed(1)}</div>
+            </div>
+          `;
+        }
+
+        // Update charts - ONLY IF ELEMENTS EXIST
+        if (stats.metrics_history) {
+          // Find the charts container before removing canvas elements
+          const chartsContainer = document.querySelector('.charts-container');
+          if (chartsContainer) {
+            // Remove old charts only if they exist
+            document.querySelectorAll('canvas').forEach(canvas => {
+              canvas.remove();
+            });
+            
+            // Create new canvas elements
+            chartsContainer.innerHTML = `
+              <div class="chart-card">
+                <div class="chart-title">Response Time History</div>
+                <canvas id="responseTimeChart"></canvas>
+              </div>
+              <div class="chart-card">
+                <div class="chart-title">Token Usage History</div>
+                <canvas id="tokenUsageChart"></canvas>
+              </div>
+            `;
+            
+            // Create new charts
+            createCharts(stats.metrics_history);
+          }
+        }
+      }
+
+      function updateTemperatureDisplay(value) {
+        document.getElementById("temperatureValue").textContent = value;
+        document.getElementById("hiddenTemperature").value = value;
+      }
+      
+      // Form submission handler
+      function handleFormSubmit() {
+        // Ensure hidden fields have current values
+        const modelSelect = document.getElementById("modelSelect");
+        const temperatureSlider = document.getElementById("temperatureSlider");
+        
+        document.getElementById("hiddenModelName").value = modelSelect.value;
+        document.getElementById("hiddenTemperature").value = temperatureSlider.value;
+        
+        return true; // Allow form submission to continue
+      }
+    </script>
   </head>
   <body>
     <div class="container">
       <h1>Tweet Sentiment Analysis</h1>
-      <form method="post" id="tweetForm">
+
+      <!-- Add model selection UI -->
+      <div class="model-selection" style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 10px;">
+        <h3>Model Settings</h3>
+        <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center;">
+          <div style="flex: 1; min-width: 200px;">
+            <label for="modelSelect" style="display: block; margin-bottom: 5px;">Select LLM Model:</label>
+            <select id="modelSelect" style="width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #ddd;">
+              {% for model in models %}
+                <option value="{{ model.name }}" {% if model.name == selected_model %}selected{% endif %}>
+                  {{ model.display }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div style="flex: 1; min-width: 200px;">
+            <label for="temperatureSlider" style="display: block; margin-bottom: 5px;">
+              Temperature: <span id="temperatureValue">{{ temperature }}</span>
+            </label>
+            <input 
+              type="range" 
+              id="temperatureSlider" 
+              min="0" 
+              max="1" 
+              step="0.1" 
+              value="{{ temperature }}" 
+              style="width: 100%;"
+              oninput="updateTemperatureDisplay(this.value)"
+            >
+          </div>
+          
+          <div style="flex: 0 0 auto;">
+            <button 
+              id="modelUpdateBtn"
+              onclick="updateModel()" 
+              style="background-color: #4b7bec; margin-top: 20px;"
+            >
+              <span id="modelUpdateLoading" class="loading" style="display: none;"></span>
+              Update Model
+            </button>
+          </div>
+        </div>
+        <div id="modelUpdateStatus" style="margin-top: 10px; font-size: 14px;"></div>
+      </div>
+
+      <form method="post" id="tweetForm" onsubmit="return handleFormSubmit()">
         <textarea
           name="tweet"
           rows="4"
@@ -149,6 +816,9 @@
         <div class="char-count">
           <span id="charCount">0</span>/280 characters
         </div>
+        <!-- Add hidden inputs to preserve model selection -->
+        <input type="hidden" name="model_name" id="hiddenModelName" value="{{ selected_model }}">
+        <input type="hidden" name="temperature" id="hiddenTemperature" value="{{ temperature }}">
         <div class="buttons-container">
           <button type="submit">Analyze Sentiment</button>
         </div>
@@ -157,7 +827,9 @@
       {% if sentiment %}
       <div class="result">
         <h2>Analysis Result</h2>
-        <div class="sentiment-badge">{{ sentiment }}</div>
+        <div class="sentiment-badge sentiment-{{ sentiment }}">
+          {{ sentiment }}
+        </div>
         <div class="buttons-container">
           <button class="explain-btn" onclick="getExplanation()">
             <span id="loading" class="loading" style="display: none"></span>
@@ -167,59 +839,136 @@
         <div id="explanation" class="explanation"></div>
       </div>
       {% endif %}
+
+      <div id="metrics-container">
+        <h3>Analysis Metrics</h3>
+        <div id="basic-metrics">
+          <p>Average Response Time: <span id="avg-response-time">0</span> seconds</p>
+          <p>Total Requests: <span id="total-requests">0</span></p>
+          <p>Cache Hits: <span id="cache-hits">0</span></p>
+          <p>Error Rate: <span id="error-rate">0</span>%</p>
+        </div>
+        <div id="model-info">
+          <p>Model: <span id="model-name">-</span></p>
+          <p>Temperature: <span id="model-temperature">0</span></p>
+        </div>
+      </div>
+
+      <div class="metrics-container">
+        <div class="metrics-header">
+          <h2>Model Performance Metrics</h2>
+          <button class="toggle-btn" onclick="toggleMetricsVisibility()">
+            <span id="toggleText">Collapse</span>
+          </button>
+        </div>
+
+        <div class="model-info">
+          <div class="model-info-item">
+            <span class="model-info-label">Model:</span>
+            <span class="model-info-value" id="modelNameDisplay">{{ stats.model_info.name }}</span>
+          </div>
+          <div class="model-info-item">
+            <span class="model-info-label">Temperature:</span>
+            <span class="model-info-value" id="temperatureDisplay">{{ stats.model_info.temperature }}</span>
+          </div>
+        </div>
+
+        <div id="metricsContent">
+          <div class="sentiment-guide">
+            <h3>Sentiment Color Guide</h3>
+            <div class="sentiment-badges">
+              <span class="sentiment-badge sentiment-Positive">Positive</span>
+              <span class="sentiment-badge sentiment-Excited">Excited</span>
+              <span class="sentiment-badge sentiment-Hopeful">Hopeful</span>
+              <span class="sentiment-badge sentiment-Proud">Proud</span>
+              <span class="sentiment-badge sentiment-Grateful">Grateful</span>
+              <span class="sentiment-badge sentiment-Negative">Negative</span>
+              <span class="sentiment-badge sentiment-Angry">Angry</span>
+              <span class="sentiment-badge sentiment-Sad">Sad</span>
+              <span class="sentiment-badge sentiment-Anxious">Anxious</span>
+              <span class="sentiment-badge sentiment-Neutral">Neutral</span>
+              <span class="sentiment-badge sentiment-Confused">Confused</span>
+              <span class="sentiment-badge sentiment-Surprised">Surprised</span>
+              <span class="sentiment-badge sentiment-Funny">Funny</span>
+              <span class="sentiment-badge sentiment-Sarcastic">Sarcastic</span>
+              <span class="sentiment-badge sentiment-Meme">Meme</span>
+            </div>
+          </div>
+
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-title">Total Requests</div>
+              <div class="metric-value">{{ stats.total_requests }}</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Success Rate</div>
+              <div class="metric-value">
+                {{ "%.1f"|format(100 * (1 - stats.error_rate)) }}%
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Cache Hit Rate</div>
+              <div class="metric-value">
+                {{ "%.1f"|format(100 * stats.cache_hits / stats.total_requests if
+                stats.total_requests > 0 else 0) }}%
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-title">Avg Response Time</div>
+              <div class="metric-value">
+                {{ "%.2f"|format(stats.avg_response_time) }}s
+              </div>
+            </div>
+          </div>
+
+          <div class="metric-card tokens" style="margin-bottom: 15px;">
+            <div class="token-metric">
+              <div class="metric-title">Total Tokens Used</div>
+              <div class="metric-value">{{ stats.total_tokens_used }}</div>
+            </div>
+            <div class="token-metric">
+              <div class="metric-title">Avg Tokens/Request</div>
+              <div class="metric-value">
+                {{ "%.1f"|format(stats.avg_tokens_per_request) }}
+              </div>
+            </div>
+          </div>
+
+          <div class="charts-container">
+            <div class="chart-card">
+              <div class="chart-title">Response Time History</div>
+              <canvas id="responseTimeChart"></canvas>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Token Usage History</div>
+              <canvas id="tokenUsageChart"></canvas>
+            </div>
+          </div>
+
+          <div class="recent-requests">
+            <h3>Recent Requests</h3>
+            <div class="request-list">
+              {% for metric in stats.recent_metrics %}
+              <div class="request-item">
+                <span class="status-indicator status-{{ 'success' if metric.success else 'error' }}"></span>
+                {{ metric.timestamp }} - Response time: {{
+                "%.3f"|format(metric.response_time) }}s 
+                {% if metric.cache_hit %}
+                <span class="cache-hit">(Cache Hit)</span>
+                {% endif %} 
+                {% if metric.error_message %}
+                <div class="error-message" style="color: #e0245e; margin-top: 3px;">Error: {{ metric.error_message }}</div>
+                {% endif %}
+                <div class="token-info" style="font-size: 12px; color: #657786; margin-top: 3px;">
+                  Tokens: {{ metric.total_tokens }} (Input: {{ metric.input_tokens
+                  }}, Output: {{ metric.output_tokens }})
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-
-    <script>
-      function updateCharCount(textarea) {
-        const charCount = textarea.value.length;
-        document.getElementById("charCount").textContent = charCount;
-      }
-
-      // Initialize character count on page load
-      window.onload = function () {
-        const textarea = document.querySelector("textarea");
-        updateCharCount(textarea);
-      };
-
-      async function getExplanation() {
-        const tweet = document.querySelector("textarea").value;
-        const sentiment =
-          document.querySelector(".sentiment-badge").textContent;
-        const loadingSpinner = document.getElementById("loading");
-        const explanationDiv = document.getElementById("explanation");
-        const explainButton = document.querySelector(".explain-btn");
-
-        // Show loading spinner
-        loadingSpinner.style.display = "inline-block";
-        explainButton.disabled = true;
-
-        try {
-          const response = await fetch("/explain", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ tweet, sentiment }),
-          });
-
-          if (!response.ok) {
-            throw new Error("Failed to get explanation");
-          }
-
-          const data = await response.json();
-          explanationDiv.textContent = data.explanation;
-          explanationDiv.style.display = "block";
-        } catch (error) {
-          console.error("Error:", error);
-          explanationDiv.textContent =
-            "Failed to get explanation. Please try again.";
-          explanationDiv.style.display = "block";
-        } finally {
-          // Hide loading spinner
-          loadingSpinner.style.display = "none";
-          explainButton.disabled = false;
-        }
-      }
-    </script>
   </body>
 </html>
