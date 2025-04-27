@@ -1,8 +1,11 @@
 import logging
 import time
+import subprocess
+import json
 from typing import Dict, Optional, List
 from dataclasses import dataclass, asdict
 from datetime import datetime
+import threading
 
 from langchain_ollama import OllamaLLM
 from langchain.prompts import PromptTemplate
@@ -87,6 +90,9 @@ class SentimentAnalyzer:
             temperature (float): Temperature for text generation (0-1)
         """
         try:
+            # First, verify the Ollama server is running by sending a simple test request
+            self._check_ollama_connection()
+
             self.model_name = model_name
             self.temperature = temperature
             self.llm = OllamaLLM(
@@ -96,8 +102,51 @@ class SentimentAnalyzer:
                 timeout=20,  # 20 second timeout
                 retry_on_failure=True,  # Auto-retry on temporary failures
             )
+
+            # Test the model with a simple input to make sure it's available
+            self._test_model_availability()
+
+        except ConnectionError as e:
+            logger.error(f"Cannot connect to Ollama server: {str(e)}")
+            raise
         except Exception as e:
             logger.error(f"Failed to initialize Ollama LLM: {str(e)}")
+            raise
+
+    def _check_ollama_connection(self):
+        """
+        Check if Ollama server is running.
+
+        Raises:
+            ConnectionError: If the Ollama server is not running or unreachable
+        """
+        import requests
+
+        try:
+            response = requests.get("http://localhost:11434/api/version", timeout=5)
+            if response.status_code != 200:
+                raise ConnectionError(
+                    f"Ollama server returned status code {response.status_code}"
+                )
+        except requests.exceptions.RequestException as e:
+            raise ConnectionError(f"Failed to connect to Ollama server: {str(e)}")
+
+    def _test_model_availability(self):
+        """
+        Test if the selected model is available on the Ollama server.
+
+        Raises:
+            ValueError: If the model is not available
+        """
+        try:
+            # Test with a very simple prompt
+            self.llm.invoke("test")
+        except Exception as e:
+            error_message = str(e).lower()
+            if "not found" in error_message or "no such file" in error_message:
+                raise ValueError(
+                    f"Model '{self.model_name}' not found on Ollama server. Please download it first."
+                )
             raise
 
         # Initialize metrics
@@ -149,8 +198,35 @@ Response:"""
         )
 
     def _estimate_tokens(self, text: str) -> int:
-        """Rough estimation of token count."""
-        return len(text.split())
+        """Better estimation of token count.
+
+        This function provides a more accurate token count estimation
+        than simply counting words by using character-level heuristics.
+
+        Args:
+            text (str): Text to estimate tokens for
+
+        Returns:
+            int: Estimated token count
+        """
+        if not text:
+            return 0
+
+        # Try to use tiktoken if available (better accuracy)
+        try:
+            import tiktoken
+
+            encoding = tiktoken.get_encoding("cl100k_base")
+            return len(encoding.encode(text))
+        except (ImportError, Exception):
+            # Fall back to character-based heuristic (closer to GPT tokenization than word count)
+            # Average ratio of tokens to characters is ~0.25 for English text
+            char_count = len(text)
+            # Add extra tokens for code or special characters
+            special_char_count = sum(
+                1 for c in text if not c.isalnum() and not c.isspace()
+            )
+            return max(1, int((char_count * 0.25) + (special_char_count * 0.1)))
 
     def _update_metrics(self, metrics: ModelMetrics) -> None:
         """Update analyzer statistics with new metrics."""
@@ -216,6 +292,7 @@ Response:"""
         """
         start_time = time.time()
         metrics = None
+        cache_hit = False
 
         if not tweet_text.strip():
             metrics = ModelMetrics(
@@ -232,15 +309,28 @@ Response:"""
             # Estimate input tokens
             input_tokens = self._estimate_tokens(tweet_text)
 
+            # Create a cache key for checking
+            cache_key = f"{self.model_name}:{self.temperature}:{hash(self.sentiment_template.template)}:{hash(tweet_text)}"
+
+            # For very fast responses, we'll consider them cache hits
+            # This fallback method is used since direct cache access might not be possible in all environments
+
             # Get sentiment using the chain
+            sentiment_start_time = time.time()
             sentiment = self.sentiment_chain.invoke(tweet_text)
+            sentiment_end_time = time.time()
+
+            # If response time is very quick, it's likely a cache hit
+            sentiment_response_time = sentiment_end_time - sentiment_start_time
+            if sentiment_response_time < 0.05:  # 50ms threshold for assuming cache hit
+                cache_hit = True
+
             cleaned_sentiment = sentiment.strip()
 
             # Calculate metrics
             response_time = time.time() - start_time
             output_tokens = self._estimate_tokens(cleaned_sentiment)
             total_tokens = input_tokens + output_tokens
-            cache_hit = response_time < 0.1  # Assuming sub-100ms is a cache hit
 
             metrics = ModelMetrics(
                 response_time=response_time,
@@ -376,8 +466,151 @@ Response:"""
             return {"explanation": None, "error": str(e), "metrics": asdict(metrics)}
 
 
-# Create a global instance of the analyzer
+def get_available_models() -> List[Dict]:
+    """Get a list of available Ollama models.
+
+    This function tries multiple approaches to get the model list:
+    1. Try using the Ollama API directly
+    2. Try parsing the CLI output
+    3. Fall back to a configurable default list
+
+    Returns:
+        List[Dict]: List of dictionaries containing model information
+    """
+    models = []
+
+    # First, try using the Ollama API directly
+    try:
+        import requests
+
+        response = requests.get("http://localhost:11434/api/tags", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            if "models" in data:
+                for model in data["models"]:
+                    models.append(
+                        {
+                            "name": model.get("name", ""),
+                            "size": f"{model.get('size', 0) // (1024*1024)} MB",
+                            "display": f"{model.get('name', '')} ({model.get('size', 0) // (1024*1024)} MB)",
+                        }
+                    )
+    except Exception as e:
+        logger.warning(f"Failed to get models from Ollama API: {str(e)}")
+
+    # If API didn't work, try CLI approach
+    if not models:
+        try:
+            result = subprocess.run(
+                ["ollama", "list"], capture_output=True, text=True, check=True
+            )
+
+            lines = result.stdout.strip().split("\n")
+            if len(lines) > 1:  # Make sure we have at least the header and one model
+                # Skip header line and process each model line
+                for line in lines[1:]:
+                    if line.strip():
+                        parts = line.strip().split()
+                        if len(parts) >= 3:
+                            # Format: NAME ID SIZE MODIFIED
+                            name = parts[0]
+                            size = (
+                                parts[2] + " " + parts[3]
+                                if len(parts) > 3
+                                else parts[2]
+                            )
+
+                            # Don't add header row or empty entries
+                            if name.lower() != "name" and name:
+                                models.append(
+                                    {
+                                        "name": name,
+                                        "size": size,
+                                        "display": f"{name} ({size})",
+                                    }
+                                )
+        except Exception as e:
+            logger.warning(f"Failed to get models from Ollama CLI: {str(e)}")
+
+    # If still no models, use default hardcoded list
+    if not models:
+        # Load from environment or config if available
+        import os
+
+        default_models_str = os.environ.get("OLLAMA_MODELS", "")
+
+        if default_models_str:
+            # Parse from environment variable in format "model1,model2,model3"
+            for model_name in default_models_str.split(","):
+                if model_name.strip():
+                    models.append(
+                        {
+                            "name": model_name.strip(),
+                            "size": "Unknown",
+                            "display": f"{model_name.strip()} (Unknown)",
+                        }
+                    )
+        else:
+            # Hardcoded fallback list
+            models = [
+                {
+                    "name": "llama3.2:latest",
+                    "size": "2.0 GB",
+                    "display": "llama3.2:latest (2.0 GB)",
+                },
+                {
+                    "name": "qwen2.5-coder:1.5b",
+                    "size": "986 MB",
+                    "display": "qwen2.5-coder:1.5b (986 MB)",
+                },
+                {
+                    "name": "llava:13b",
+                    "size": "8.0 GB",
+                    "display": "llava:13b (8.0 GB)",
+                },
+                {
+                    "name": "deepseek-r1:8b",
+                    "size": "4.9 GB",
+                    "display": "deepseek-r1:8b (4.9 GB)",
+                },
+            ]
+
+    return models
+
+
+# Create a lock for thread safety when updating the analyzer
+analyzer_lock = threading.Lock()
+
+# Create a global instance of the analyzer with default model
 analyzer = SentimentAnalyzer()
+
+
+# Function to update the analyzer with a new model
+def update_analyzer_model(model_name: str, temperature: float = 0) -> bool:
+    """Update the analyzer with a new model.
+
+    Thread-safe function to update the global analyzer instance with a new model.
+
+    Args:
+        model_name (str): Name of the Ollama model to use
+        temperature (float): Temperature for text generation (0-1)
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    global analyzer
+
+    # Create a new analyzer instance first to avoid affecting the current one if there's an error
+    try:
+        new_analyzer = SentimentAnalyzer(model_name=model_name, temperature=temperature)
+
+        # If successful, update the global instance with thread safety
+        with analyzer_lock:
+            analyzer = new_analyzer
+        return True
+    except Exception as e:
+        logger.error(f"Error updating model: {str(e)}")
+        return False
 
 
 # Expose the functions with the same interface as before
@@ -388,9 +621,38 @@ def analyze_sentiment(tweet_text: str) -> str:
 
 
 def get_sentiment_explanation(tweet_text: str, sentiment: str) -> str:
-    """Backward-compatible function for getting explanations."""
+    """
+    Get explanation for a sentiment classification.
+
+    Args:
+        tweet_text (str): The tweet to explain
+        sentiment (str): The sentiment to explain
+
+    Returns:
+        str: The explanation
+
+    Raises:
+        ValueError: If the input is invalid or explanation cannot be generated
+    """
+    if not tweet_text or not tweet_text.strip():
+        raise ValueError("Tweet text cannot be empty")
+
+    if not sentiment or not sentiment.strip():
+        raise ValueError("Sentiment cannot be empty")
+
     result = analyzer.get_explanation(tweet_text, sentiment)
-    return result["explanation"] or "Unable to generate explanation."
+
+    # Check for errors
+    if result.get("error"):
+        logger.error(f"Error getting explanation: {result['error']}")
+        raise ValueError(result["error"])
+
+    # Check for missing explanation
+    if not result.get("explanation"):
+        logger.error("No explanation was generated")
+        raise ValueError("Unable to generate explanation")
+
+    return result["explanation"]
 
 
 def get_analyzer_stats() -> Dict:
